@@ -1,0 +1,7 @@
+{
+  "name": "Live TV Pro - Optimized Streaming",
+  "description": "A high-performance IPTV player built with React and HLS.js, optimized to minimize buffering and freezing with intelligent buffer management and auto-recovery logic.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
