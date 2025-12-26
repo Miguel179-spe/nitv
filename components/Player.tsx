@@ -1,9 +1,7 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { Channel, PlayerState } from '../types';
 import { HLS_CONFIG } from '../constants';
-
-declare const Hls: any;
+import Hls from 'hls.js';
 
 interface PlayerProps {
   channel: Channel | null;
@@ -14,13 +12,12 @@ interface PlayerProps {
 
 const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const hlsRef = useRef<any>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [internalState, setInternalState] = useState<PlayerState>(PlayerState.IDLE);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isControlsVisible, setIsControlsVisible] = useState(true);
-  // Fix: Replaced NodeJS.Timeout with any to avoid namespace errors in browser environments
   const controlsTimeoutRef = useRef<any>(null);
 
   const updateState = (state: PlayerState) => {
@@ -44,7 +41,6 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
     setError(null);
     updateState(PlayerState.LOADING);
 
-    // Cleanup previous HLS instance
     if (hlsRef.current) {
       hlsRef.current.destroy();
       hlsRef.current = null;
@@ -62,22 +58,19 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {
-          // Auto-play might be blocked, require user interaction or start muted
           video.muted = true;
           video.play();
         });
         updateState(PlayerState.PLAYING);
       });
 
-      hls.on(Hls.Events.ERROR, (event: any, data: any) => {
+      hls.on(Hls.Events.ERROR, (_event: any, data: any) => {
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log('Fatal network error, attempting recovery...');
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log('Fatal media error, attempting recovery...');
               hls.recoverMediaError();
               break;
             default:
@@ -89,12 +82,10 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
         }
       });
 
-      // Track buffering
       hls.on(Hls.Events.BUFFER_APPENDING, () => {
         if (video.paused && !video.ended) updateState(PlayerState.BUFFERING);
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Native HLS (iOS/Safari)
       video.src = url;
       video.addEventListener('loadedmetadata', () => {
         video.play();
@@ -113,7 +104,6 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
     };
   }, [channel]);
 
-  // Handle video element events
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -193,7 +183,6 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
         playsInline
       />
 
-      {/* Overlays */}
       {internalState === PlayerState.BUFFERING && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all">
           <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -217,7 +206,6 @@ const Player: React.FC<PlayerProps> = ({ channel, onStateChange, onNext, onPrev 
         </div>
       )}
 
-      {/* Controls */}
       <div className={`
         absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-6 flex flex-col gap-4 transition-all duration-300
         ${isControlsVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'}
